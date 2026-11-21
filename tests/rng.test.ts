@@ -6,7 +6,8 @@ describe('Rng', () => {
   it('repeats exactly for the same seed', () => {
     const a = new Rng(42);
     const b = new Rng(42);
-    for (let i = 0; i < 1000; i++) expect(a.next()).toBe(b.next());
+    const draw = (rng: Rng): number[] => Array.from({ length: 1000 }, () => rng.next());
+    expect(draw(a)).toEqual(draw(b));
   });
 
   it('differs between seeds', () => {
@@ -31,23 +32,21 @@ describe('Rng', () => {
     const rng = new Rng(7);
     const buckets = new Array<number>(10).fill(0);
     const n = 20000;
+    let outOfRange = 0;
     for (let i = 0; i < n; i++) {
       const v = rng.next();
-      expect(v).toBeGreaterThanOrEqual(0);
-      expect(v).toBeLessThan(1);
-      buckets[Math.floor(v * 10)]!++;
+      if (!(v >= 0 && v < 1)) outOfRange++;
+      else buckets[Math.floor(v * 10)]!++;
     }
+    expect(outOfRange).toBe(0);
     for (const count of buckets) expect(Math.abs(count - n / 10)).toBeLessThan(n * 0.02);
   });
 
   it('int stays within bounds', () => {
     const rng = new Rng(3);
-    for (let i = 0; i < 2000; i++) {
-      const v = rng.int(7);
-      expect(Number.isInteger(v)).toBe(true);
-      expect(v).toBeGreaterThanOrEqual(0);
-      expect(v).toBeLessThan(7);
-    }
+    const seen = new Set<number>();
+    for (let i = 0; i < 2000; i++) seen.add(rng.int(7));
+    expect([...seen].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 
   it('exponential has the right mean', () => {

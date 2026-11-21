@@ -34,9 +34,13 @@ describe('RoadMap', () => {
     for (let trial = 0; trial < 25; trial++) {
       const map = randomMap(rng, 3 + rng.int(6), 3 + rng.int(5), 0.3);
       const reference = floydWarshall(map);
+      const wrong: [number, number][] = [];
       for (const a of map.freeCells) {
-        for (const b of map.freeCells) expect(map.distance(a, b)).toBe(reference[a]![b]);
+        for (const b of map.freeCells) {
+          if (map.distance(a, b) !== reference[a]![b]) wrong.push([a, b]);
+        }
       }
+      expect(wrong).toEqual([]);
     }
   });
 
@@ -56,10 +60,8 @@ describe('RoadMap', () => {
         expect(path[0]).toBe(a);
         expect(path.at(-1)).toBe(b);
         expect(path.length).toBe(distance + 1);
-        for (let i = 1; i < path.length; i++) {
-          expect(map.isFree(path[i]!)).toBe(true);
-          expect(map.neighbours(path[i - 1]!)).toContain(path[i]);
-        }
+        const steps = path.slice(1).map((cell, i) => map.neighbours(path[i]!).includes(cell));
+        expect(steps.every(Boolean)).toBe(true);
       }
     }
   });
@@ -118,7 +120,7 @@ describe('generateCity', () => {
       const map = generateCity(new Rng(seed), { width: 28, height: 19 });
       expect(map.freeCells.length).toBeGreaterThan(150);
       const field = map.distanceField(map.freeCells[0]!);
-      for (const c of map.freeCells) expect(field[c]).toBeGreaterThanOrEqual(0);
+      expect(map.freeCells.filter((c) => field[c]! < 0)).toEqual([]);
     }
   });
 

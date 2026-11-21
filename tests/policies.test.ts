@@ -137,15 +137,19 @@ describe('queue with chaining', () => {
     const scenario = buildScenario({ seed: 6, pattern: 'lunch', horizon: 3600, jobsPerHour: 200 });
     const sim = new Simulation(scenario, createPolicy('chain'));
     let chainedSeen = 0;
+    const badPhases = new Set<string>();
     sim.onEvent = () => {
       for (const robot of sim.robots) {
         if (robot.nextJobId === null) continue;
         chainedSeen++;
-        expect(['loading', 'to_dropoff', 'unloading']).toContain(robot.phase);
+        if (!['loading', 'to_dropoff', 'unloading'].includes(robot.phase)) {
+          badPhases.add(robot.phase);
+        }
       }
     };
     sim.run();
     expect(chainedSeen).toBeGreaterThan(0);
+    expect([...badPhases]).toEqual([]);
   });
 
   it('drives less empty distance than the plain queue under load', () => {
@@ -247,6 +251,7 @@ describe('all policies', () => {
     const sim = new Simulation(scenario, policy);
     const interval = policy.tickInterval ?? 0;
     const idleSince = new Map<number, number>();
+    let longestIdle = 0;
     sim.onEvent = () => {
       const waiting = sim.jobs.filter((j) => j.status === 'pending');
       for (const robot of sim.robots) {
@@ -257,10 +262,11 @@ describe('all policies', () => {
         const since = idleSince.get(robot.id) ?? sim.now;
         idleSince.set(robot.id, since);
         // An event-driven policy reacts at once; the batch policy within one tick.
-        expect(sim.now - since).toBeLessThanOrEqual(interval);
+        longestIdle = Math.max(longestIdle, sim.now - since);
       }
     };
     sim.run();
+    expect(longestIdle).toBeLessThanOrEqual(interval);
     expect(sim.jobs.filter((j) => j.status === 'delivered').length).toBe(scenario.jobs.length);
   });
 
